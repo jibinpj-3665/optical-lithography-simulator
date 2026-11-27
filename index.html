@@ -62,8 +62,14 @@
               <button class="chip" data-jog="5,0">X+</button>
               <button class="chip" data-jog="0,-5">Y−</button>
             </div>
-            <p class="muted small">Jog the stage 5 mm per tap. Lead screws, motor shafts and the cable chain follow the motion.</p>
+            <p class="muted small">Jog the stage 5 mm per tap. Only the screw and motor shaft rotate; the motor body stays fixed.</p>
           </div>
+          <div class="field"><label>Lead screw</label><select id="leadSelect"></select></div>
+          <div class="stat-line"><span>Motion resolution</span><strong id="leadResolution">—</strong></div>
+          <div class="stat-line"><span>Stage position</span><strong id="stagePosition">X 0.0 · Y 0.0 mm</strong></div>
+          <div class="stat-line"><span>Screw angle X / Y</span><strong id="screwAngle">0° / 0°</strong></div>
+          <p class="muted small">Scene scale: 1 unit = 1 mm. Screw angle = travel / lead × 360°; motor full steps = travel / lead × 200.</p>
+          <div id="mechTable" class="mini-table"></div>
           <div class="toggle-row">
             <label class="switch"><input type="checkbox" id="lidToggle" checked /><span></span> Safety lid closed</label>
             <label class="switch"><input type="checkbox" id="enclosureToggle" checked /><span></span> Show enclosure</label>
@@ -170,6 +176,12 @@
             <a href="https://www.precisionmechatronicslab.com/wp-content/uploads/2021/02/C18c.pdf" target="_blank" rel="noopener">Ghalehbeygi et al., ACC 2018</a> — Gaussian beam and scanned-dose equations.
             <a href="https://opg.optica.org/ao/abstract.cfm?uri=ao-41-5-895" target="_blank" rel="noopener">Andersen et al., Appl. Opt. 41, 895 (2002)</a> — linewidth vs power/velocity.
             <a href="http://congres.cran.univ-lorraine.fr/2002/CCA%202002/pdffiles/papers/154_ThA2-2.pdf" target="_blank" rel="noopener">Hnilicka et al., CCA 2002</a> — astigmatic focus-error S-curve.
+            <a href="https://github.com/hzeller/ldgraphy" target="_blank" rel="noopener">LDgraphy</a> — open 405 nm scanned-laser lithography and timing architecture.
+            <a href="https://github.com/gnea/grbl/blob/master/doc/markdown/settings.md" target="_blank" rel="noopener">GRBL settings</a> — steps/mm = motor steps × microsteps ÷ screw lead.
+            <a href="https://www.microchemicals.com/dokumente/application_notes/spin_coating_photoresist.pdf" target="_blank" rel="noopener">MicroChemicals spin-coating notes</a> — h ∝ ω<sup>−1/2</sup> and soft-bake practice.
+            <a href="https://openflexure.org/projects/blockstage" target="_blank" rel="noopener">OpenFlexure Block Stage</a> — precision flexure-stage motion and backlash control.
+            <a href="https://heidelberg-instruments.com/wp-content/uploads/2025/06/Heidelberg-Instruments-MLA150-Datasheet.pdf" target="_blank" rel="noopener">Heidelberg MLA150</a> — raster-scan maskless writing with continuous autofocus.
+            <a href="https://physlabs.colostate.edu/lithography/" target="_blank" rel="noopener">Colorado State LW405C</a> — scanned UV spot, dose control and interferometric stage.
           </div>
           <h3>Safety</h3>
           <ul class="safety" id="safetyList"></ul>
@@ -244,6 +256,8 @@
     <h2>About this simulator</h2>
     <p>Built from the two documents uploaded with this project: <em>Building a laboratory desktop semiconductor lithography machine</em> and <em>DIY UV spot-line lithography machine</em>.</p>
     <p>The process model uses published-style approximations: spin thickness ∝ solids/viscosity/√rpm, Gaussian beam waist with Rayleigh range, scanned-line dose, a Hill-function resist contrast curve, and an astigmatic focus-error signal.</p>
+    <p>Mechanical parts use catalogue dimensions: 20 × 20 mm T-slot extrusion, a 42.3 mm NEMA 17 body with a Ø5 mm shaft, MGN9/MGN12 rails and Ø8 mm T8 screws. One scene unit is one millimetre.</p>
+    <p>Motion follows the hardware: the motor body stays fixed while its shaft and coupler turn the screw, and screw angle = travel ÷ lead × 360°. Select T8x2, T8x4 or T8x8 to change lead and resolution. Spin-coat speed uses ω = 2π·rpm/60.</p>
     <p>Use the jog pad to move the stage, “Spin coat now” to spin the chuck, “Run job” to scan the G-code toolpath, and the auto-orbit toggle for a hands-free 3D view.</p>
     <p>The three photos in the source folder could not be analysed by the available models, so geometry is reconstructed from the written specifications.</p>
     <p class="muted small">Everything runs locally in your browser. Three.js is vendored, so no network connection is required.</p>

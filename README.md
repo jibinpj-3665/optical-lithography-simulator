@@ -28,11 +28,14 @@ npm start          # http://localhost:8080
 - Amber enclosure with a hinged lid, rubber gasket, magnetic interlock LED, control panel, E-stop and a spinning fume-extractor fan.
 - Clickable component hotspots (attached to moving parts where relevant), five camera presets, orbit/zoom controls and optional auto-orbit.
 
-### Mechanical motion
-- **Jog pad:** tap X/Y to move the stage 5 mm with smooth acceleration/deceleration.
-- **Home:** returns both axes to origin; lead screws and motor shafts counter-rotate with the motion.
-- **Run job:** the generated G-code drives the stage, the cable chain follows the carriage and the laser beam follows the focal plane.
-- **Spin coat now:** spins the chuck for 3 s at the selected rpm; the beam and fan also respond to PWM duty and job state.
+### Mechanical dimensions and motion
+- The scene uses **1 unit = 1 mm**. The frame is 200 × 180 × 140 mm; X/Y travel is 50 × 50 mm.
+- Parts follow catalogue dimensions: 20 × 20 mm T-slot extrusion with a 6.2 mm slot, NEMA 17 motors with a 42.3 mm face / 40 mm body / Ø5 mm shaft / 31 mm mounting centres, MGN9/MGN12 rails and blocks, and Ø8 mm T8 screws with a 2 mm thread pitch.
+- **Lead screw selector:** T8x2 (1 start, 2 mm lead), T8x4 (2 starts, 4 mm lead) or T8x8 (4 starts, 8 mm lead). Changing the selection swaps the visible helices and updates the resolution readout.
+- **Kinematics:** motor bodies stay fixed; only the shaft, coupler and screw rotate. Screw angle = travel ÷ lead × 360°. With 1.8° NEMA 17 motors and 16× A4988 microstepping, GRBL-style steps/mm = 200 × 16 ÷ lead (1600, 800 or 400 steps/mm).
+- **Jog pad / Home:** move 5 mm per tap or return to origin with smooth acceleration/deceleration; the stage, cable chain and live position/angle readouts follow the programmed feed.
+- **Run job:** the generated G-code drives the stage at the selected feed; the cable chain follows the carriage and the laser beam follows the focal plane.
+- **Spin coat now:** spins the chuck for 3 s using ω = 2π·rpm/60; high rpm aliases at display frame rate, as on a real camera.
 - **Lid/E-stop:** the lid swings open on its hinge, the interlock LED turns red, and the laser, beam and job stop.
 
 ### Process physics
@@ -69,6 +72,13 @@ Recent three.js guidance was applied in `js/machine.js`:
 - [Ghalehbeygi et al., ACC 2018](https://www.precisionmechatronicslab.com/wp-content/uploads/2021/02/C18c.pdf) — Gaussian beam intensity and scanned dose
 - [Andersen et al., Applied Optics 41, 895 (2002)](https://opg.optica.org/ao/abstract.cfm?uri=ao-41-5-895) — linewidth vs power/velocity
 - [Hnilicka et al., CCA 2002](http://congres.cran.univ-lorraine.fr/2002/CCA%202002/pdffiles/papers/154_ThA2-2.pdf) — astigmatic focus-error S-curve
+- [MicroChemicals spin-coating notes](https://www.microchemicals.com/dokumente/application_notes/spin_coating_photoresist.pdf) — resist film thickness vs rpm, viscosity and soft bake
+- [LDgraphy](https://github.com/hzeller/ldgraphy) — open 405 nm scanned-laser lithography and PRU-timed motor/laser control
+- [GRBL settings](https://github.com/gnea/grbl/blob/master/doc/markdown/settings.md) — `$100/$101` steps/mm = motor steps × microsteps ÷ lead
+- [OpenFlexure Block Stage](https://openflexure.org/projects/blockstage) — precision stage mechanics, flexures and backlash practice
+- [Heidelberg MLA150 datasheet](https://heidelberg-instruments.com/wp-content/uploads/2025/06/Heidelberg-Instruments-MLA150-Datasheet.pdf) — raster-scan maskless writing and continuous autofocus
+- [Colorado State LW405C](https://physlabs.colostate.edu/lithography/) — scanned UV spot, dose control and interferometric positioning
+- [Desktop Maskless Lithography](https://iliasidorov.com/) — GDSII-driven desktop prototype with closed-loop stages and calibration
 
 ## Source material
 
@@ -76,7 +86,7 @@ Built from these files in the parent folder:
 - `Building a laboratory desktop semiconductor lithography machine.docx`
 - `DIY UV spot-line lithography machine.docx`
 
-The BOM and cost table are transcribed directly from the second document (₹13,668–₹20,400 including 20% contingency). The three accompanying `.jpg` photos could not be analysed by the available models, so the 3D geometry is reconstructed from the written specifications rather than traced from the photos.
+The BOM and cost table are transcribed directly from the second document (₹13,668–₹20,400 including 20% contingency). The documents name NEMA 17 motors, T8 screws, MGN9/MGN12 rails, 2020 extrusion and a 405 nm laser but do not give exact part dimensions, so the model uses standard catalogue sizes for those components. The three accompanying `.jpg` photos could not be analysed by the available models, so the 3D geometry is reconstructed from the written specifications rather than traced from the photos.
 
 ## Project structure
 

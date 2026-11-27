@@ -1,4 +1,4 @@
-import { MATERIALS, SCALES, BOM, SAFETY, COMPONENTS } from './config.js';
+import { MATERIALS, SCALES, BOM, SAFETY, COMPONENTS, DIM, DRIVE, LEAD_SCREWS } from './config.js';
 import { PATTERNS } from './patterns.js';
 import { GRID } from './process.js';
 
@@ -26,6 +26,13 @@ export function createUI(handlers) {
     opt.textContent = key[0].toUpperCase() + key.slice(1);
     patternSelect.appendChild(opt);
   }
+  const leadSelect = $('#leadSelect');
+  for (const [key, data] of Object.entries(LEAD_SCREWS)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = data.label;
+    leadSelect.appendChild(opt);
+  }
 
   $('#scaleTable').innerHTML = SCALES.map((s) => `
     <div class="row"><strong>${s.name}</strong><span>Goal: ${s.goal}</span><span>Resolution: ${s.resolution}</span>
@@ -38,6 +45,21 @@ export function createUI(handlers) {
       ${group.items.map(([name, lo, hi]) => `<div class="bom-row"><span>${name}</span><strong>₹${lo}–${hi}</strong></div>`).join('')}
       <div class="bom-total"><span>Subtotal</span><span>₹${group.items.reduce((a, i) => a + i[1], 0)} – ₹${group.items.reduce((a, i) => a + i[2], 0)}</span></div>
     </div>`).join('');
+
+  const mechanicalRows = [
+    ['2020 extrusion', `${DIM.extrusion.size}×${DIM.extrusion.size} mm · ${DIM.extrusion.slot} mm slot`],
+    ['NEMA 17 motor', `${DIM.nema17.face} mm face · ${DIM.nema17.body} mm body · Ø${DIM.nema17.shaft} mm shaft`],
+    ['MGN12 rail / block', `${DIM.mgn12.railW}×${DIM.mgn12.railH} mm rail · ${DIM.mgn12.blockW}×${DIM.mgn12.blockL} mm block`],
+    ['MGN9 rail / block', `${DIM.mgn9.railW}×${DIM.mgn9.railH} mm rail · ${DIM.mgn9.blockW}×${DIM.mgn9.blockL} mm block`],
+    ['T8 lead screw', `Ø${DIM.t8.diameter} mm · ${DIM.t8.pitch} mm thread pitch`],
+    ['Stage travel', `${DIM.stage.travelX} × ${DIM.stage.travelY} mm`],
+    ['Frame envelope', `${DIM.frame.outerW} × ${DIM.frame.outerD} × ${DIM.frame.height} mm`],
+  ];
+  $('#mechTable').innerHTML = [
+    ['Component', 'Catalogue dimension'],
+    ...mechanicalRows,
+  ].map(([name, dims]) => `
+    <div class="row"><strong>${name}</strong><span>${dims}</span></div>`).join('');
 
   function bindTabs() {
     $$('.tab').forEach((tab) => tab.addEventListener('click', () => {
@@ -93,6 +115,7 @@ export function createUI(handlers) {
     materialSelect.addEventListener('change', () => handlers.onMaterial(materialSelect.value));
     $('#toneSelect').addEventListener('change', (e) => handlers.onTone(e.target.value));
     patternSelect.addEventListener('change', () => handlers.onPattern(patternSelect.value));
+    leadSelect.addEventListener('change', () => handlers.onLead(leadSelect.value));
     $('#playBtn').addEventListener('click', () => handlers.onPlay());
     $('#pauseBtn').addEventListener('click', () => handlers.onPause());
     $('#resetBtn').addEventListener('click', () => handlers.onReset());
@@ -246,6 +269,22 @@ export function createUI(handlers) {
     ctx.fillText('-60 µm', 6, h - 6); ctx.fillText('0', w / 2 - 4, h - 6); ctx.fillText('+60 µm', w - 46, h - 6);
   }
 
+  function setLead(key) {
+    const selected = key in LEAD_SCREWS ? key : 'T8x2';
+    const data = LEAD_SCREWS[selected];
+    leadSelect.value = selected;
+    const stepsPerMm = DRIVE.fullStepsPerRev * DRIVE.microsteps / data.lead;
+    const microstepUm = 1000 / stepsPerMm;
+    $('#leadResolution').textContent =
+      `${microstepUm.toFixed(3)} µm/µstep · ${stepsPerMm.toFixed(0)} steps/mm`;
+  }
+
+  function setMotion(m) {
+    const deg = (rad) => ((Math.round(rad * 180 / Math.PI) % 360) + 360) % 360;
+    $('#stagePosition').textContent = `X ${m.x.toFixed(1)} · Y ${m.y.toFixed(1)} mm`;
+    $('#screwAngle').textContent = `${deg(m.angleX).toFixed(0)}° / ${deg(m.angleY).toFixed(0)}°`;
+  }
+
   function setGcode(text) { $('#gcode').value = text; }
   function setPattern(key, description) {
     patternSelect.value = key;
@@ -283,7 +322,7 @@ export function createUI(handlers) {
   log('Simulator ready — model loaded from project documents');
   return {
     log, syncParams, setReadouts, paintField, drawContrast, drawQpd, drawFes,
-    setGcode, setPattern, setJob, setProgress, setStatus, showComponent, selectTab,
+    setGcode, setPattern, setJob, setProgress, setStatus, setLead, setMotion, showComponent, selectTab,
     setMaterial: (name) => { materialSelect.value = name; },
     setTone: (tone) => { $('#toneSelect').value = tone; },
     getMaterial: () => materialSelect.value,

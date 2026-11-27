@@ -11,6 +11,31 @@ export const MACHINE = {
   waferRadiusMm: 15,
 };
 
+// 3D scene units are millimetres. Values are standard catalogue dimensions:
+// 2020 extrusion 20x20 mm with 6.2 mm slot; NEMA17 42.3 mm face / 40 mm body /
+// 5 mm shaft / 31 mm mounting centres; MGN9 and MGN12 from the HIWIN MG datasheet;
+// T8 trapezoidal screws are 8 mm OD with 2 mm thread pitch.
+export const DIM = {
+  extrusion: { size: 20, slot: 6.2, slotDepth: 6.1, bore: 4.3 },
+  nema17: { face: 42.3, body: 40, shaft: 5, shaftLength: 20, pilot: 22, holePitch: 31 },
+  mgn12: { railW: 12, railH: 8, holePitch: 25, blockW: 27, blockL: 34.7, blockH: 13 },
+  mgn9: { railW: 9, railH: 6.5, holePitch: 20, blockW: 20, blockL: 28.9, blockH: 10 },
+  t8: { diameter: 8, pitch: 2 },
+  frame: { outerW: 200, outerD: 180, height: 140 },
+  stage: { travelX: 50, travelY: 50, waferRadius: 15 },
+};
+
+// Lead = linear travel per one 360° screw/motor revolution.
+// T8x2 is the precision choice: 200 full steps/rev ÷ 2 mm = 100 steps/mm.
+export const LEAD_SCREWS = {
+  'T8x2': { lead: 2, starts: 1, label: 'T8x2 · 2 mm lead · precision' },
+  'T8x4': { lead: 4, starts: 2, label: 'T8x4 · 4 mm lead · balanced' },
+  'T8x8': { lead: 8, starts: 4, label: 'T8x8 · 8 mm lead · fast' },
+};
+
+// NEMA 17 is 1.8°/full step. A4988 drivers are configured for 16× microstepping.
+export const DRIVE = { stepAngleDeg: 1.8, fullStepsPerRev: 200, microsteps: 16 };
+
 export const SCALES = [
   {
     name: 'Micro project',
@@ -95,7 +120,7 @@ export const COMPONENTS = {
   },
   stage: {
     title: 'X–Y stage',
-    text: 'NEMA 17 steppers turn T8 lead screws on MGN linear rails. GRBL/Marlin-style G-code moves the substrate under the fixed beam. Mechanical play sets the ~50 µm mini-project limit.',
+    text: 'NEMA 17 steppers turn Ø8 mm T8 screws on MGN9/MGN12 rails. With a T8x2 screw, one 1.8° full step advances 10 µm; at 16× microstepping the resolution is 0.625 µm. The stage travels 50 × 50 mm.',
   },
   wafer: {
     title: 'Substrate + resist',
@@ -111,7 +136,7 @@ export const COMPONENTS = {
   },
   motor: {
     title: 'NEMA 17 + A4988',
-    text: 'Stepper driver on a CNC Shield V3. Microstepping smooths motion, but backlash and coupler compliance remain the dominant source of pattern error.',
+    text: '42.3 mm face, 40 mm body, 31 mm mounting centres and a 5 mm D-shaft. A4988 at 16× gives 3200 microsteps/rev; GRBL needs $100/$101 = 3200/lead steps/mm (1600 for T8x2). Only the shaft and coupler rotate.',
   },
   qpd: {
     title: 'Astigmatic focus sensor',

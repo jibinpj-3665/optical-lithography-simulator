@@ -187,6 +187,8 @@ textarea { height: 210px; resize: vertical; font: 10px/1.45 var(--mono); color: 
 .mini-table .row:first-child { border-top: none; background: #14212c; color: var(--cyan); font-weight: 600; }
 .mini-table .row span { color: var(--muted); }
 .mini-table strong { color: #c8d7e5; font-weight: 500; }
+#mechTable .row { grid-template-columns: minmax(92px, 0.9fr) 1.5fr; gap: 10px; align-items: baseline; }
+#mechTable .row span { color: #c8d7e5; }
 .references { display: grid; gap: 6px; font-size: 11px; color: var(--muted); }
 .references a { color: var(--cyan); text-decoration: none; }
 .references a:hover { text-decoration: underline; }

@@ -36,6 +36,7 @@ let segmentT = 0;
 let traversed = 0;
 let totalLength = 0;
 let motion = null;
+let leadKey = 'T8x2';
 let spinUntil = 0;
 
 const machine = createMachine(
@@ -123,6 +124,12 @@ const ui = createUI({
     refreshSafety();
   },
   onSpeed(value) { animSpeed = value; },
+  onLead(key) {
+    leadKey = key;
+    machine.setLeadScrew(key);
+    ui.setLead(key);
+    ui.log(`Lead screw: ${key} · screw angle follows travel / lead`);
+  },
   onAutofocus() { runAutofocus(); },
   onJog(dx, dy) {
     running = false;
@@ -161,12 +168,13 @@ function refreshSafety() {
 
 function moveStageTo(x, y, duration = 0.6) {
   const from = machine.getStagePosition();
+  const limit = MACHINE.stageTravelMm / 2;
   motion = {
     t: 0,
     duration,
     fromX: from.x, fromY: from.y,
-    toX: Math.max(-24, Math.min(24, x)),
-    toY: Math.max(-18, Math.min(18, y)),
+    toX: Math.max(-limit, Math.min(limit, x)),
+    toY: Math.max(-limit, Math.min(limit, y)),
   };
 }
 
@@ -232,7 +240,7 @@ function resetPath() {
 
 function advanceJob(dt) {
   if (!running || !safe() || !path.length) return;
-  let budget = 12 * animSpeed * dt; // visual mm/s
+  let budget = params.speedMmS * animSpeed * dt; // programmed feed × time scale
   while (budget > 0 && pathIndex < path.length) {
     const seg = path[pathIndex];
     const remain = seg.len * (1 - segmentT);
@@ -303,6 +311,7 @@ function loop(now) {
   advanceMotion(dt);
   advanceJob(dt);
   machine.render(dt);
+  ui.setMotion(machine.getMotion());
 
   clock.frames++;
   if (now - clock.hudAt >= 500) {
@@ -322,8 +331,11 @@ ui.setMaterial(params.material);
 ui.setTone(params.tone);
 ui.setPattern('lines', job.description);
 ui.setGcode(job.gcode);
+ui.setLead(leadKey);
+machine.setLeadScrew(leadKey);
 ui.syncParams(params);
 preparePath();
 recompute();
+ui.setMotion(machine.getMotion());
 ready = true;
 requestAnimationFrame(loop);
