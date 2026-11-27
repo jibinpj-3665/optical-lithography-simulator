@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Optical Lithography Simulator — Desktop DWL Machine</title>
+  <meta name="description" content="Interactive 3D simulator of a DIY desktop UV direct-write lithography machine: spin coating, Gaussian laser exposure, development and astigmatic autofocus." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d141d'/%3E%3Ctext x='16' y='23' font-size='21' text-anchor='middle' fill='%2322d3ee'%3E%CE%BB%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js" } }
+  </script>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">λ</div>
+      <div>
+        <h1>Optical Lithography Simulator</h1>
+        <p>DIY desktop direct-write UV system · 405 nm · physical process model</p>
+      </div>
+    </div>
+    <div class="top-status">
+      <span class="pill" id="pillInterlock"><i></i> Interlock OK</span>
+      <span class="pill" id="pillLaser"><i></i> Laser off</span>
+      <span class="pill" id="pillStage"><i></i> Stage idle</span>
+      <button class="icon-btn" id="helpBtn" title="About this simulator">?</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT CONTROL PANEL -->
+    <aside class="sidebar left">
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="machine">3D Machine</button>
+        <button class="tab" data-tab="coat">Coat</button>
+        <button class="tab" data-tab="expose">Expose</button>
+        <button class="tab" data-tab="develop">Develop</button>
+        <button class="tab" data-tab="focus">Focus</button>
+        <button class="tab" data-tab="job">Job</button>
+        <button class="tab" data-tab="learn">Docs</button>
+        <button class="tab" data-tab="bom">BOM</button>
+      </nav>
+
+      <div class="panel-scroll">
+        <section class="panel active" data-panel="machine">
+          <h2>Explore the machine</h2>
+          <p class="muted">Drag to orbit · scroll to zoom · click a labelled hotspot for details.</p>
+          <div class="view-grid">
+            <button class="chip" data-view="overview">Overview</button>
+            <button class="chip" data-view="head">Optical head</button>
+            <button class="chip" data-view="stage">X–Y stage</button>
+            <button class="chip" data-view="top">Top view</button>
+            <button class="chip" data-view="enclosure">Enclosure</button>
+          </div>
+          <div class="toggle-row">
+            <label class="switch"><input type="checkbox" id="lidToggle" checked /><span></span> Safety lid closed</label>
+            <label class="switch"><input type="checkbox" id="enclosureToggle" checked /><span></span> Show enclosure</label>
+            <label class="switch"><input type="checkbox" id="estopToggle" /><span></span> Emergency stop</label>
+          </div>
+          <div class="card" id="componentCard">
+            <h3 id="componentTitle">405 nm optical head</h3>
+            <p id="componentText">Focused violet laser diode (or salvaged Blu-ray PHR-803T pickup). A heatsink and TTL/PWM driver set the dose; the voice coil moves the lens for focus.</p>
+          </div>
+          <div class="note warning"><strong>Safety model:</strong> opening the lid or pressing E-stop forces the laser driver off. The beam glow disappears and the exposure job pauses.</div>
+        </section>
+
+        <section class="panel" data-panel="coat">
+          <h2>1 · Spin coating</h2>
+          <p class="muted">A thin, uniform resist film. Thickness scales roughly with √speed⁻¹.</p>
+          <div class="field"><label>Spin speed <output data-out="rpm"></output></label><input type="range" data-param="rpm" min="500" max="6000" step="100" value="3000" /></div>
+          <div class="field"><label>Resist viscosity (mPa·s) <output data-out="viscosity"></output></label><input type="range" data-param="viscosity" min="10" max="200" step="5" value="40" /></div>
+          <div class="field"><label>Solids content (%) <output data-out="solids"></output></label><input type="range" data-param="solids" min="2" max="20" step="0.5" value="10" /></div>
+          <div class="field"><label>Spin time (s) <output data-out="spinTime"></output></label><input type="range" data-param="spinTime" min="5" max="60" step="1" value="30" /></div>
+          <div class="divider">Soft bake</div>
+          <div class="field"><label>Temperature (°C) <output data-out="softBakeC"></output></label><input type="range" data-param="softBakeC" min="40" max="120" step="5" value="95" /></div>
+          <div class="field"><label>Time (s) <output data-out="softBakeS"></output></label><input type="range" data-param="softBakeS" min="0" max="300" step="10" value="60" /></div>
+          <div class="stat-line"><span>Film thickness</span><strong id="coatThickness">—</strong></div>
+          <p class="muted small">Try 1000 rpm vs 5000 rpm and watch the interference colour of the wafer change.</p>
+        </section>
+
+        <section class="panel" data-panel="expose">
+          <h2>2 · Direct-write exposure</h2>
+          <p class="muted">A focused Gaussian spot scans the G-code toolpath. Dose = power ÷ (speed × spot width).</p>
+          <div class="field"><label>Resist material</label><select id="materialSelect"></select></div>
+          <div class="field"><label>Tone</label><select id="toneSelect"><option value="positive">Positive (exposed dissolves)</option><option value="negative">Negative (exposed stays)</option></select></div>
+          <div class="field"><label>Diode rated power (mW) <output data-out="laserMw"></output></label><input type="range" data-param="laserMw" min="10" max="100" step="1" value="60" /></div>
+          <div class="field"><label>PWM duty (%) <output data-out="dutyPct"></output></label><input type="range" data-param="dutyPct" min="0.5" max="100" step="0.5" value="1" /></div>
+          <div class="field"><label>Scan speed (mm/s) <output data-out="speedMmS"></output></label><input type="range" data-param="speedMmS" min="5" max="500" step="5" value="100" /></div>
+          <div class="field"><label>Focused spot 1/e² (µm) <output data-out="spotUm"></output></label><input type="range" data-param="spotUm" min="0.8" max="8" step="0.1" value="2" /></div>
+          <div class="field"><label>Stage error / backlash (µm) <output data-out="stageErrorUm"></output></label><input type="range" data-param="stageErrorUm" min="0" max="15" step="0.5" value="1.5" /></div>
+          <div class="field"><label>Defocus (µm) <output data-out="defocusUm"></output></label><input type="range" data-param="defocusUm" min="-60" max="60" step="1" value="0" /></div>
+          <div class="stat-line"><span>Peak dose</span><strong id="exposeDose">—</strong></div>
+          <div class="stat-line"><span>Dose / threshold</span><strong id="exposeRatio">—</strong></div>
+          <div class="note">Effective optical power = rated mW × PWM duty. At 60 mW and 1% duty the sample sees 0.6 mW.</div>
+        </section>
+
+        <section class="panel" data-panel="develop">
+          <h2>3 · Development</h2>
+          <p class="muted">Dissolution rate follows a contrast curve. Exposed positive resist clears; the latent image becomes topography.</p>
+          <div class="field"><label>Dose threshold D<sub>th</sub> (mJ/cm²) <output data-out="doseThreshold"></output></label><input type="range" data-param="doseThreshold" min="10" max="300" step="5" value="60" /></div>
+          <div class="field"><label>Contrast γ <output data-out="gamma"></output></label><input type="range" data-param="gamma" min="1" max="10" step="0.5" value="4" /></div>
+          <div class="field"><label>Developer strength (%) <output data-out="developerPct"></output></label><input type="range" data-param="developerPct" min="20" max="100" step="5" value="100" /></div>
+          <div class="field"><label>Development time (s) <output data-out="devTimeS"></output></label><input type="range" data-param="devTimeS" min="5" max="120" step="1" value="35" /></div>
+          <div class="stat-line"><span>Residual resist (min–max)</span><strong id="devHeight">—</strong></div>
+          <canvas id="contrastCanvas" class="chart wide" width="440" height="180"></canvas>
+          <p class="muted small">Contrast curve: remaining thickness after development vs normalised dose.</p>
+        </section>
+
+        <section class="panel" data-panel="focus">
+          <h2>4 · Astigmatic autofocus</h2>
+          <p class="muted">The quadrant photodiode sees an ellipse that rotates through focus. FES = (A+C)−(B+D) forms an S-curve.</p>
+          <div class="field"><label>Z defocus (µm) <output data-out="defocusUm"></output></label><input type="range" data-param="defocusUm" min="-60" max="60" step="1" value="0" /></div>
+          <button class="primary wide-btn" id="autofocusBtn">Run autofocus loop</button>
+          <canvas id="qpdCanvas" class="chart wide" width="440" height="220"></canvas>
+          <canvas id="fesCanvas" class="chart wide" width="440" height="150"></canvas>
+          <div class="stat-line"><span>Focus error signal</span><strong id="fesValue">—</strong></div>
+          <div class="stat-line"><span>Rayleigh range</span><strong id="rayleighValue">—</strong></div>
+          <p class="muted small">Autofocus steps the voice coil using FES gain until |FES| &lt; 0.02, mimicking the STM32 real-time loop.</p>
+        </section>
+
+        <section class="panel" data-panel="job">
+          <h2>5 · G-code job & animation</h2>
+          <p class="muted">Pick a maskless pattern. The same toolpath drives the 3D stage, dose map and developed image.</p>
+          <div class="field"><label>Pattern</label><select id="patternSelect"></select></div>
+          <p class="muted small" id="patternDesc"></p>
+          <div class="btn-row">
+            <button class="primary" id="playBtn">▶ Run job</button>
+            <button class="secondary" id="pauseBtn">❚❚ Pause</button>
+            <button class="secondary" id="resetBtn">↺ Reset stage</button>
+          </div>
+          <div class="field"><label>Animation speed <output id="speedOut">1×</output></label><input type="range" id="animSpeed" min="0.1" max="5" step="0.1" value="1" /></div>
+          <div class="progress"><div id="jobProgress"></div></div>
+          <div class="stat-line"><span>Toolpath length</span><strong id="jobLength">—</strong></div>
+          <div class="stat-line"><span>Process time at feed</span><strong id="jobTime">—</strong></div>
+          <div class="field"><label>Generated G-code</label><textarea id="gcode" readonly spellcheck="false"></textarea></div>
+          <button class="secondary wide-btn" id="copyGcode">Copy G-code</button>
+        </section>
+
+        <section class="panel" data-panel="learn">
+          <h2>How the real machine works</h2>
+          <div class="steps">
+            <div><b>1</b><span><strong>Coat</strong> — spin a polymer or photoresist into a flat film on glass or silicon.</span></div>
+            <div><b>2</b><span><strong>Expose</strong> — focus a 405 nm laser to 1–5 µm and scan it with G-code over an X–Y stage.</span></div>
+            <div><b>3</b><span><strong>Develop</strong> — dissolve the dose-dependent resist to reveal the pattern.</span></div>
+            <div><b>4</b><span><strong>Inspect</strong> — measure residual thickness, line width and focus error.</span></div>
+          </div>
+          <h3>Project scales</h3>
+          <div id="scaleTable" class="mini-table"></div>
+          <h3>Substrate versatility</h3>
+          <div id="materialTable" class="mini-table"></div>
+          <h3>Safety</h3>
+          <ul class="safety" id="safetyList"></ul>
+          <div class="note warning">This is an educational model. It does not replace laser safety training, a UV enclosure, interlocks or chemical ventilation.</div>
+        </section>
+
+        <section class="panel" data-panel="bom">
+          <h2>Cost breakdown (INR)</h2>
+          <p class="muted">Itemised from the DIY UV spot/line machine document.</p>
+          <div id="bomTable"></div>
+          <div class="stat-line total"><span>Estimated base total</span><strong id="bomBase">—</strong></div>
+          <div class="stat-line total"><span>+ 20% contingency</span><strong id="bomFinal">—</strong></div>
+        </section>
+      </div>
+    </aside>
+
+    <!-- 3D VIEWPORT -->
+    <section class="viewport">
+      <canvas id="scene"></canvas>
+      <div id="hotspots"></div>
+      <div class="viewport-toolbar">
+        <button class="chip" data-view="overview">⟲ Overview</button>
+        <button class="chip" data-view="head">Head</button>
+        <button class="chip" data-view="stage">Stage</button>
+        <button class="chip" data-view="top">Top</button>
+        <button class="chip" data-view="enclosure">Enclosure</button>
+        <span class="spacer"></span>
+        <span class="axis-label">X → &nbsp; Y ↗ &nbsp; Z ↑</span>
+      </div>
+      <div class="viewport-status" id="viewportStatus">
+        <span><b>Film</b> <i id="vFilm">—</i></span>
+        <span><b>Dose</b> <i id="vDose">—</i></span>
+        <span><b>CD</b> <i id="vCd">—</i></span>
+        <span><b>Focus</b> <i id="vFocus">—</i></span>
+      </div>
+      <div class="viewport-hint">Drag to orbit · scroll to zoom · click labels</div>
+    </section>
+
+    <!-- RIGHT ANALYTICS PANEL -->
+    <aside class="sidebar right">
+      <h2>Live metrology</h2>
+      <div class="readout-grid">
+        <div class="readout"><span>Film thickness</span><strong id="rThickness">—</strong></div>
+        <div class="readout"><span>Effective spot</span><strong id="rSpot">—</strong></div>
+        <div class="readout"><span>Peak dose</span><strong id="rDose">—</strong></div>
+        <div class="readout"><span>Dose / D<sub>th</sub></span><strong id="rRatio">—</strong></div>
+        <div class="readout"><span>Resist cleared</span><strong id="rCleared">—</strong></div>
+        <div class="readout"><span>Achievable CD</span><strong id="rCd">—</strong></div>
+        <div class="readout"><span>Exposed area</span><strong id="rArea">—</strong></div>
+        <div class="readout"><span>Laser state</span><strong id="rLaser">OFF</strong></div>
+      </div>
+      <div class="chart-block">
+        <div class="chart-head"><span>Dose map</span><span class="legend dose"></span></div>
+        <canvas id="doseCanvas" class="chart" width="360" height="220"></canvas>
+      </div>
+      <div class="chart-block">
+        <div class="chart-head"><span>Developed topography</span><span class="legend height"></span></div>
+        <canvas id="heightCanvas" class="chart" width="360" height="220"></canvas>
+      </div>
+      <div class="chart-block">
+        <div class="chart-head"><span>Event log</span><button class="text-btn" id="clearLog">clear</button></div>
+        <div id="log" class="log"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="helpModal" hidden>
+  <div class="modal">
+    <button class="modal-close" id="closeHelp">×</button>
+    <h2>About this simulator</h2>
+    <p>Built from the two documents uploaded with this project: <em>Building a laboratory desktop semiconductor lithography machine</em> and <em>DIY UV spot-line lithography machine</em>.</p>
+    <p>The process model uses published-style approximations: spin thickness ∝ solids/viscosity/√rpm, Gaussian beam waist with Rayleigh range, scanned-line dose, a Hill-function resist contrast curve, and an astigmatic focus-error signal.</p>
+    <p>The three photos in the source folder could not be analysed by the available models, so geometry is reconstructed from the written specifications.</p>
+    <p class="muted small">Everything runs locally in your browser. Three.js is vendored, so no network connection is required.</p>
+  </div>
+</div>
+
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>

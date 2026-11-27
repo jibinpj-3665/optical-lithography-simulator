@@ -1,0 +1,10 @@
+{
+  "name": "optical-lithography-simulator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interactive 3D simulator of a DIY desktop UV direct-write lithography machine",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check js/main.js && node --check js/machine.js && node --check js/process.js && node --check js/patterns.js && node --check js/ui.js && node --check js/config.js"
+  }
+}
