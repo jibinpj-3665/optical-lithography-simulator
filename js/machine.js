@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from '../vendor/OrbitControls.js';
 import { RoomEnvironment } from '../vendor/RoomEnvironment.js';
 import { RoundedBoxGeometry } from '../vendor/RoundedBoxGeometry.js';
+import { GLTFLoader } from '../vendor/GLTFLoader.js';
 import { mergeGeometries } from '../vendor/BufferGeometryUtils.js';
 import { COMPONENTS, DIM, LEAD_SCREWS } from './config.js';
 import { GRID } from './process.js';
@@ -14,6 +15,11 @@ const darkBrushed = brushedMetalTexture('#3d4855', 19);
 const gridTex = gridPlateTexture();
 const warnTex = warningLabelTexture();
 const motorTex = motorLabelTexture();
+
+const ASSET_URLS = {
+  fan: new URL('../assets/models/inline-round-duct-fan-200mm.glb', import.meta.url).href,
+  motor: new URL('../assets/models/nema17-stepper-motor-with-mount.glb', import.meta.url).href,
+};
 
 const MAT = {
   dark: new THREE.MeshStandardMaterial({ color: 0x27313d, metalness: 0.72, roughness: 0.42, map: darkBrushed }),
@@ -300,12 +306,14 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
     g.rotation.y = rotY;
     const { face, body, shaft, shaftLength, pilot, holePitch } = DIM.nema17;
     const faceZ = body / 2;
-    rbox(face, face, body, 2.2, 0, 0, 0, MAT.black, g);
+    const shell = new THREE.Group();
+    g.add(shell);
+    rbox(face, face, body, 2.2, 0, 0, 0, MAT.black, shell);
     for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
-      bolt(sx * holePitch / 2, sy * holePitch / 2, faceZ + 0.4, g, 'z');
+      bolt(sx * holePitch / 2, sy * holePitch / 2, faceZ + 0.4, shell, 'z');
     }
-    cylinder(pilot / 2, 2, 0, 0, faceZ + 1, MAT.aluminium, g, 32).rotation.x = Math.PI / 2;
-    labelPlane(18, 9, motorTex, 0, 0, faceZ + 2.2, g);
+    cylinder(pilot / 2, 2, 0, 0, faceZ + 1, MAT.aluminium, shell, 32).rotation.x = Math.PI / 2;
+    labelPlane(18, 9, motorTex, 0, 0, faceZ + 2.2, shell);
 
     const spin = new THREE.Group();
     g.add(spin);
@@ -313,6 +321,7 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
       .rotation.x = Math.PI / 2;
     cylinder(DIM.t8.diameter / 2 + 0.4, 10, 0, 0, faceZ + shaftLength + 5, MAT.copper, spin, 24)
       .rotation.x = Math.PI / 2;
+    g.userData.shell = shell;
     g.userData.spin = spin;
     parent.add(g);
     return g;
@@ -470,12 +479,14 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
   const fan = new THREE.Group();
   fan.position.set(-52, 90, -outerD / 2 + 25.5);
   machine.add(fan);
+  const fanRotor = new THREE.Group();
+  fan.add(fanRotor);
   for (let i = 0; i < 7; i++) {
-    const blade = box(3.2, 11, 0.8, 0, 6.5, 0, MAT.aluminium, fan);
+    const blade = box(3.2, 11, 0.8, 0, 6.5, 0, MAT.aluminium, fanRotor);
     blade.rotation.z = (i / 7) * Math.PI * 2;
     blade.position.set(Math.sin((i / 7) * Math.PI * 2) * 6.5, Math.cos((i / 7) * Math.PI * 2) * 6.5, 0);
   }
-  cylinder(2.2, 1.4, 0, 0, 0.8, MAT.black, fan, 20).rotation.x = Math.PI / 2;
+  cylinder(2.2, 1.4, 0, 0, 0.8, MAT.black, fanRotor, 20).rotation.x = Math.PI / 2;
 
   // Hotspot overlays
   const hotspots = [];
@@ -522,6 +533,80 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
   let angleX = 0;
   let angleY = 0;
   let clockT = 0;
+
+  // CC0 catalogue models add real surface detail; procedural geometry remains
+  // as an instant fallback if a GLB is missing or fails to decode.
+  const gltfLoader = new GLTFLoader();
+  const assetStatus = { fan: false, motor: false };
+  let fanSpinGroup = fanRotor;
+  let fanSpinAxis = 'z';
+
+  function loadGlb(url) {
+    return new Promise((resolve, reject) => gltfLoader.load(url, resolve, undefined, reject));
+  }
+
+  function prepareFanModel(gltf) {
+    const root = gltf.scene;
+    const rotor = root.getObjectByName('Galvanised steel');
+    const pivot = new THREE.Group();
+    pivot.position.set(0, 0.16, 0);
+    root.add(pivot);
+    if (rotor) {
+      rotor.removeFromParent();
+      rotor.position.y -= 0.16;
+      pivot.add(rotor);
+    }
+    mergeStaticMeshes(root, new Set([pivot]));
+    // The source is 442 x 430 x 360 mm; scale it into the fume-extractor bay.
+    root.scale.setScalar(220);
+    root.rotation.y = -Math.PI / 2;
+    root.position.set(-52, 90 - 0.16 * 220, -outerD / 2 - 18);
+    return { root, pivot };
+  }
+
+  function prepareMotorModel(gltf) {
+    const root = gltf.scene.clone(true);
+    const shaft = root.getObjectByName('D_shaft');
+    if (shaft) shaft.removeFromParent();
+    mergeStaticMeshes(root, new Set());
+    // Source axes: motor body +Y, shaft +X. Map shaft to local +Z so the
+    // existing shaft/coupler and screw kinematics stay unchanged.
+    root.scale.setScalar(1000);
+    root.rotation.y = -Math.PI / 2;
+    root.position.set(0, -25, 7);
+    return root;
+  }
+
+  async function loadDetailedAssets() {
+    const results = await Promise.allSettled([loadGlb(ASSET_URLS.fan), loadGlb(ASSET_URLS.motor)]);
+    const [fanResult, motorResult] = results;
+
+    if (fanResult.status === 'fulfilled') {
+      const { root, pivot } = prepareFanModel(fanResult.value);
+      pivot.rotation.x = fanRotor.rotation.z;
+      machine.add(root);
+      fanRotor.visible = false;
+      fanSpinGroup = pivot;
+      fanSpinAxis = 'x';
+      assetStatus.fan = true;
+    } else {
+      console.warn('Fan GLB unavailable; keeping procedural fan.', fanResult.reason);
+    }
+
+    if (motorResult.status === 'fulfilled') {
+      const model = prepareMotorModel(motorResult.value);
+      for (const motor of [motorX, motorY]) {
+        const clone = model.clone(true);
+        motor.userData.shell.visible = false;
+        motor.add(clone);
+      }
+      assetStatus.motor = true;
+    } else {
+      console.warn('Motor GLB unavailable; keeping procedural motors.', motorResult.reason);
+    }
+
+    document.body.dataset.assets = assetStatus.fan && assetStatus.motor ? 'detailed' : 'fallback';
+  }
 
   function setView(name) {
     const p = viewPresets[name] || viewPresets.overview;
@@ -688,7 +773,9 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
     lid.rotation.x = lidCurrent;
     focusCurrent += (focusTarget - focusCurrent) * Math.min(1, dt * 8);
     lensGroup.position.y = focusCurrent;
-    fan.rotation.z -= dt * (laserOn ? 6 : 2.2);
+    const fanRate = dt * (laserOn ? 6 : 2.2);
+    if (fanSpinAxis === 'x') fanSpinGroup.rotation.x -= fanRate;
+    else fanSpinGroup.rotation.z -= fanRate;
     if (spinRpm > 0) {
       // ω = 2π·rpm/60 rad/s; high rpm will alias at display frame rate, as on a real camera.
       bed.rotation.y = (bed.rotation.y + dt * spinRpm * Math.PI / 30) % (Math.PI * 2);
@@ -723,8 +810,11 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
   resize();
   setLeadScrew(leadKey);
   setStagePosition(0, 0);
+  const whenAssetsReady = loadDetailedAssets();
   return {
     scene, camera, renderer, controls, machine,
+    whenAssetsReady,
+    getAssetStatus: () => ({ ...assetStatus }),
     setView, setStagePosition, setLeadScrew, setLaser, setLid, setEStop, setEnclosureVisible,
     setFocus, setPwm, setAutoOrbit, setBedSpinning, setWaferField, resize, render, getStats,
     getStagePosition: () => ({ x: lastX, y: lastY }),

@@ -23,6 +23,7 @@ npm start          # http://localhost:8080
 ### 3D machine
 - PBR-lit 2020 aluminium frame with chamfered extrusions, T-slot grooves, bolts and a gridded base plate. Procedural brushed-metal textures and a room-environment map give the metals realistic reflections.
 - X–Y stage with NEMA 17 motors, lead screws with visible helical threads, MGN rails, a drooping cable chain and a rotating wafer chuck.
+- Two CC0 catalogue meshes add real component detail: an Innerscene NEMA 17 motor with mount and an Innerscene inline-round duct fan used as the fume extractor. The procedural versions remain as fallbacks.
 - Fixed optical head with heatsink, voice-coil lens, quadrant photodiode and an amber-transmission safety label.
 - Wafer surface uses a texture-mapped resist layer that updates after development, with bump mapping for topography.
 - Amber enclosure with a hinged lid, rubber gasket, magnetic interlock LED, control panel, E-stop and a spinning fume-extractor fan.
@@ -60,7 +61,7 @@ Opening the lid or pressing the E-stop forces the laser driver off, pauses the j
 Recent three.js guidance was applied in `js/machine.js`:
 - device pixel ratio capped at 1.5× to avoid rendering 9× the pixels on 3× displays;
 - a 1024² `PCFShadowMap` instead of the deprecated soft-shadow constant;
-- static frame/rail/fitting geometry is merged per material (`js/machine.js`), cutting draw calls from ~458 to ~201 despite the extra detail;
+- static frame/rail/fitting geometry is merged per material (`js/machine.js`), cutting draw calls from ~458 to ~185 even after adding the two detailed GLB assets;
 - hotspot DOM positions are reprojected only when the camera or an attached part moves;
 - a live FPS / draw-call HUD is shown in the viewport toolbar;
 - physics solves triggered by slider input are coalesced to one per animation frame in `js/main.js`.
@@ -79,6 +80,13 @@ Recent three.js guidance was applied in `js/machine.js`:
 - [Heidelberg MLA150 datasheet](https://heidelberg-instruments.com/wp-content/uploads/2025/06/Heidelberg-Instruments-MLA150-Datasheet.pdf) — raster-scan maskless writing and continuous autofocus
 - [Colorado State LW405C](https://physlabs.colostate.edu/lithography/) — scanned UV spot, dose control and interferometric positioning
 - [Desktop Maskless Lithography](https://iliasidorov.com/) — GDSII-driven desktop prototype with closed-loop stages and calibration
+
+## 3D asset credits
+
+The requested CGTrader and BlendSwap fan pages were checked, but the usable files were account-gated or had unclear redistribution terms, and `.blend` conversion is unavailable here. Bambu Lab / Creality-branded meshes likewise have no verified free-license download. The simulator therefore uses these original, explicitly CC0 alternatives, vendored locally in `assets/models/`:
+
+- [NEMA 17 stepper motor with mount](https://www.innerscene.com/tools/library/3d-parts/nema-17-stepper-motor-with-mount-4eb49da6) — Innerscene, CC0 1.0. Used for both axis motors; the procedural shaft/coupler still spins so kinematics remain exact.
+- [Inline round duct fan 200 mm](https://www.innerscene.com/tools/library/3d-parts/inline-round-duct-fan-200-mm-68691a8b) — Innerscene, CC0 1.0. Scaled into the rear fume-extractor bay; its rotor mesh spins independently.
 
 ## Source material
 
@@ -101,7 +109,8 @@ js/machine.js       Three.js scene, camera, PBR materials, moving mechanics
 js/textures.js      procedural brushed metal, grid plate and label textures
 js/ui.js            controls, charts, tables, event log
 js/main.js          state orchestration, jogging and job animation
-vendor/             vendored Three.js r180 modules and add-ons
+assets/models/      vendored CC0 GLB motor and fan assets
+vendor/             vendored Three.js r180 modules and add-ons (including GLTFLoader)
 ```
 
 ## License
