@@ -54,9 +54,20 @@
             <button class="chip" data-view="top">Top view</button>
             <button class="chip" data-view="enclosure">Enclosure</button>
           </div>
+          <div class="jog-wrap">
+            <div class="jog-pad">
+              <button class="chip" data-jog="0,5">Y+</button>
+              <button class="chip" data-jog="-5,0">X−</button>
+              <button class="chip home" data-jog="home">⌂ Home</button>
+              <button class="chip" data-jog="5,0">X+</button>
+              <button class="chip" data-jog="0,-5">Y−</button>
+            </div>
+            <p class="muted small">Jog the stage 5 mm per tap. Lead screws, motor shafts and the cable chain follow the motion.</p>
+          </div>
           <div class="toggle-row">
             <label class="switch"><input type="checkbox" id="lidToggle" checked /><span></span> Safety lid closed</label>
             <label class="switch"><input type="checkbox" id="enclosureToggle" checked /><span></span> Show enclosure</label>
+            <label class="switch"><input type="checkbox" id="orbitToggle" /><span></span> Auto-orbit camera</label>
             <label class="switch"><input type="checkbox" id="estopToggle" /><span></span> Emergency stop</label>
           </div>
           <div class="card" id="componentCard">
@@ -76,6 +87,7 @@
           <div class="divider">Soft bake</div>
           <div class="field"><label>Temperature (°C) <output data-out="softBakeC"></output></label><input type="range" data-param="softBakeC" min="40" max="120" step="5" value="95" /></div>
           <div class="field"><label>Time (s) <output data-out="softBakeS"></output></label><input type="range" data-param="softBakeS" min="0" max="300" step="10" value="60" /></div>
+          <button class="primary wide-btn" id="spinBtn">◌ Spin coat now (3 s)</button>
           <div class="stat-line"><span>Film thickness</span><strong id="coatThickness">—</strong></div>
           <p class="muted small">Try 1000 rpm vs 5000 rpm and watch the interference colour of the wafer change.</p>
         </section>
@@ -232,6 +244,7 @@
     <h2>About this simulator</h2>
     <p>Built from the two documents uploaded with this project: <em>Building a laboratory desktop semiconductor lithography machine</em> and <em>DIY UV spot-line lithography machine</em>.</p>
     <p>The process model uses published-style approximations: spin thickness ∝ solids/viscosity/√rpm, Gaussian beam waist with Rayleigh range, scanned-line dose, a Hill-function resist contrast curve, and an astigmatic focus-error signal.</p>
+    <p>Use the jog pad to move the stage, “Spin coat now” to spin the chuck, “Run job” to scan the G-code toolpath, and the auto-orbit toggle for a hands-free 3D view.</p>
     <p>The three photos in the source folder could not be analysed by the available models, so geometry is reconstructed from the written specifications.</p>
     <p class="muted small">Everything runs locally in your browser. Three.js is vendored, so no network connection is required.</p>
   </div>

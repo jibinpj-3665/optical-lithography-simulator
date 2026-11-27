@@ -21,11 +21,19 @@ npm start          # http://localhost:8080
 ## What it simulates
 
 ### 3D machine
-- 2020 aluminium frame, base plate, X–Y stage with NEMA 17 motors, T8 lead screws and MGN linear rails.
-- Fixed optical head with heatsink, voice-coil lens and a quadrant photodiode.
-- Wafer chuck and a texture-mapped resist surface that updates after development.
-- Amber enclosure with a hinged lid, magnetic interlock and emergency stop.
-- Clickable component hotspots, six camera presets and orbit/zoom controls.
+- PBR-lit 2020 aluminium frame with chamfered extrusions, T-slot grooves, bolts and a gridded base plate. Procedural brushed-metal textures and a room-environment map give the metals realistic reflections.
+- X–Y stage with NEMA 17 motors, lead screws with visible helical threads, MGN rails, a drooping cable chain and a rotating wafer chuck.
+- Fixed optical head with heatsink, voice-coil lens, quadrant photodiode and an amber-transmission safety label.
+- Wafer surface uses a texture-mapped resist layer that updates after development, with bump mapping for topography.
+- Amber enclosure with a hinged lid, rubber gasket, magnetic interlock LED, control panel, E-stop and a spinning fume-extractor fan.
+- Clickable component hotspots (attached to moving parts where relevant), five camera presets, orbit/zoom controls and optional auto-orbit.
+
+### Mechanical motion
+- **Jog pad:** tap X/Y to move the stage 5 mm with smooth acceleration/deceleration.
+- **Home:** returns both axes to origin; lead screws and motor shafts counter-rotate with the motion.
+- **Run job:** the generated G-code drives the stage, the cable chain follows the carriage and the laser beam follows the focal plane.
+- **Spin coat now:** spins the chuck for 3 s at the selected rpm; the beam and fan also respond to PWM duty and job state.
+- **Lid/E-stop:** the lid swings open on its hinge, the interlock LED turns red, and the laser, beam and job stop.
 
 ### Process physics
 | Stage | Model |
@@ -49,7 +57,8 @@ Opening the lid or pressing the E-stop forces the laser driver off, pauses the j
 Recent three.js guidance was applied in `js/machine.js`:
 - device pixel ratio capped at 1.5× to avoid rendering 9× the pixels on 3× displays;
 - a 1024² `PCFShadowMap` instead of the deprecated soft-shadow constant;
-- hotspot DOM positions are reprojected only when the camera changes;
+- static frame/rail/fitting geometry is merged per material (`js/machine.js`), cutting draw calls from ~458 to ~201 despite the extra detail;
+- hotspot DOM positions are reprojected only when the camera or an attached part moves;
 - a live FPS / draw-call HUD is shown in the viewport toolbar;
 - physics solves triggered by slider input are coalesced to one per animation frame in `js/main.js`.
 
@@ -78,10 +87,11 @@ server.js           dependency-free static server
 js/config.js        document-derived constants, BOM, safety notes
 js/patterns.js      toolpath generators + minimal G-code parser
 js/process.js       physics solver and field colourisation
-js/machine.js       Three.js scene, camera, hotspots, animation hooks
+js/machine.js       Three.js scene, camera, PBR materials, moving mechanics
+js/textures.js      procedural brushed metal, grid plate and label textures
 js/ui.js            controls, charts, tables, event log
-js/main.js          state orchestration and job animation
-vendor/             vendored Three.js r180 modules
+js/main.js          state orchestration, jogging and job animation
+vendor/             vendored Three.js r180 modules and add-ons
 ```
 
 ## License

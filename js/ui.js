@@ -81,7 +81,15 @@ export function createUI(handlers) {
     }));
     $('#lidToggle').addEventListener('change', (e) => handlers.onLid(!e.target.checked));
     $('#enclosureToggle').addEventListener('change', (e) => handlers.onEnclosure(e.target.checked));
+    $('#orbitToggle').addEventListener('change', (e) => handlers.onAutoOrbit(e.target.checked));
     $('#estopToggle').addEventListener('change', (e) => handlers.onEStop(e.target.checked));
+    $$('[data-jog]').forEach((b) => b.addEventListener('click', () => {
+      const raw = b.dataset.jog;
+      if (raw === 'home') { handlers.onHome(); return; }
+      const [dx, dy] = raw.split(',').map(Number);
+      handlers.onJog(dx, dy);
+    }));
+    $('#spinBtn').addEventListener('click', () => handlers.onSpin());
     materialSelect.addEventListener('change', () => handlers.onMaterial(materialSelect.value));
     $('#toneSelect').addEventListener('change', (e) => handlers.onTone(e.target.value));
     patternSelect.addEventListener('change', () => handlers.onPattern(patternSelect.value));

@@ -35,6 +35,8 @@ let pathIndex = 0;
 let segmentT = 0;
 let traversed = 0;
 let totalLength = 0;
+let motion = null;
+let spinUntil = 0;
 
 const machine = createMachine(
   document.querySelector('#scene'),
@@ -96,7 +98,10 @@ const ui = createUI({
       ui.log('Cannot run: lid open or E-stop active', 'warn');
       return;
     }
-    if (pathIndex >= path.length) resetPath();
+    if (motion) {
+      motion = null;
+      resetPath();
+    } else if (pathIndex >= path.length) resetPath();
     running = true;
     ui.log('Job started — stage scanning toolpath');
     refreshSafety();
@@ -119,6 +124,25 @@ const ui = createUI({
   },
   onSpeed(value) { animSpeed = value; },
   onAutofocus() { runAutofocus(); },
+  onJog(dx, dy) {
+    running = false;
+    const pos = machine.getStagePosition();
+    moveStageTo(pos.x + dx, pos.y + dy, 0.45);
+    ui.log(`Jog stage X${dx > 0 ? '+' : ''}${dx} Y${dy > 0 ? '+' : ''}${dy}`);
+    refreshSafety();
+  },
+  onHome() {
+    running = false;
+    moveStageTo(0, 0, 1.1);
+    ui.log('Stage homing sequence started');
+    refreshSafety();
+  },
+  onAutoOrbit(on) { machine.setAutoOrbit(on); },
+  onSpin() {
+    spinUntil = performance.now() + 3000;
+    machine.setBedSpinning(true, params.rpm);
+    ui.log(`Spin coat: ${params.rpm} rpm for 3 s`);
+  },
 });
 
 function safe() {
@@ -135,6 +159,28 @@ function refreshSafety() {
   machine.setLaser(laserFiring && safe());
 }
 
+function moveStageTo(x, y, duration = 0.6) {
+  const from = machine.getStagePosition();
+  motion = {
+    t: 0,
+    duration,
+    fromX: from.x, fromY: from.y,
+    toX: Math.max(-24, Math.min(24, x)),
+    toY: Math.max(-18, Math.min(18, y)),
+  };
+}
+
+function advanceMotion(dt) {
+  if (!motion) return;
+  motion.t = Math.min(1, motion.t + dt / motion.duration);
+  const e = motion.t * motion.t * (3 - 2 * motion.t); // smoothstep accel/decel
+  machine.setStagePosition(
+    motion.fromX + (motion.toX - motion.fromX) * e,
+    motion.fromY + (motion.toY - motion.fromY) * e
+  );
+  if (motion.t >= 1) motion = null;
+}
+
 function recompute() {
   thickness = spinThicknessUm(params.rpm, params.viscosity, params.solids, params.spinTime);
   doseResult = computeDoseMap(job.segments, params);
@@ -144,6 +190,7 @@ function recompute() {
   waferImage = fieldToImage(developed.remaining, 'height');
   machine.setWaferField(waferImage);
   machine.setFocus(params.defocusUm);
+  machine.setPwm(params.dutyPct);
 
   const doseImage = fieldToImage(
     doseResult.dose, 'dose', Math.max(doseResult.peak, params.doseThreshold * 2)
@@ -248,8 +295,14 @@ function loop(now) {
     recompute();
     dirty = false;
   }
+  if (spinUntil && now >= spinUntil) {
+    spinUntil = 0;
+    machine.setBedSpinning(false);
+    ui.log('Spin coat complete — resist film ready');
+  }
+  advanceMotion(dt);
   advanceJob(dt);
-  machine.render();
+  machine.render(dt);
 
   clock.frames++;
   if (now - clock.hudAt >= 500) {
