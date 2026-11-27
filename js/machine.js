@@ -43,13 +43,17 @@ function edged(mesh, color = 0x4d5b6b) {
 }
 
 export function createMachine(canvas, hotspotLayer, onHotspotClick) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const renderer = new THREE.WebGLRenderer({
+    canvas, antialias: true, alpha: false, powerPreference: 'high-performance',
+  });
+  // Cap DPR at 1.5: a 3x phone would otherwise render 9x the pixels for little gain.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // PCFSoftShadowMap is deprecated in current three.js revisions; PCF is cheaper and stable.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0a0f16);
@@ -70,7 +74,7 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
   const key = new THREE.DirectionalLight(0xffffff, 2.1);
   key.position.set(120, 220, 140);
   key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.mapSize.set(1024, 1024);
   key.shadow.camera.left = -160;
   key.shadow.camera.right = 160;
   key.shadow.camera.top = 160;
@@ -250,6 +254,7 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
 
   function setView(name) {
     const p = viewPresets[name] || viewPresets.overview;
+    hotspotsDirty = true;
     tween = {
       t: 0,
       fromPos: camera.position.clone(),
@@ -303,10 +308,16 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
     waferTexture.needsUpdate = true;
   }
 
+  const projected = new THREE.Vector3();
+  let hotspotsDirty = true;
+  controls.addEventListener('change', () => { hotspotsDirty = true; });
+
   function updateHotspots() {
+    if (!hotspotsDirty) return;
+    hotspotsDirty = false;
     const rect = canvas.getBoundingClientRect();
     for (const h of hotspots) {
-      const p = h.pos.clone().project(camera);
+      const p = projected.copy(h.pos).project(camera);
       const visible = p.z < 1 && p.x > -1.2 && p.x < 1.2 && p.y > -1.2 && p.y < 1.2;
       h.el.style.display = visible ? 'flex' : 'none';
       if (visible) {
@@ -316,7 +327,16 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
     }
   }
 
+  function getStats() {
+    return {
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      pixelRatio: renderer.getPixelRatio(),
+    };
+  }
+
   function resize() {
+    hotspotsDirty = true;
     const w = canvas.clientWidth || 800;
     const h = canvas.clientHeight || 600;
     renderer.setSize(w, h, false);
@@ -341,7 +361,7 @@ export function createMachine(canvas, hotspotLayer, onHotspotClick) {
   return {
     scene, camera, renderer, controls, machine,
     setView, setStagePosition, setLaser, setLid, setEStop, setEnclosureVisible, setFocus,
-    setWaferField, resize, render,
+    setWaferField, resize, render, getStats,
     get lidOpen() { return lidOpen; },
     get laserOn() { return laserOn; },
   };

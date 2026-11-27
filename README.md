@@ -31,7 +31,7 @@ npm start          # http://localhost:8080
 | Stage | Model |
 | --- | --- |
 | Spin coat | `h ∝ (solids/viscosity)^a · rpm^-1/2`, with edge bead and soft-bake effects |
-| Exposure | Gaussian waist `w(z) = w₀√(1 + (z/zR)²)`, `zR = πw₀²/λ`; scanned-line dose `D = P / (v·σ·√(2π))` in mJ/cm², using effective power `rated mW × PWM duty` |
+| Exposure | Gaussian waist `w(z) = w₀√(1 + (z/zR)²)`, `zR = πw₀²/λ`; scanned-line centre dose `D = 0.1·√(2/π)·P/(v·w)` in mJ/cm², using effective power `rated mW × PWM duty`. Matches the beam/dose formulation in Ghalehbeygi et al. (ACC 2018). |
 | Development | Hill contrast curve `rate = r_dark + r_max·(D/Dth)^γ / (1 + (D/Dth)^γ)`, positive or negative tone |
 | Autofocus | Astigmatic quadrant signal, S-curve `FES = 2[(A+C)−(B+D)] / Σ`, closed-loop Z steps until `|FES| < 0.02` |
 | Metrology | Residual film thickness, exposed area, dose ratio, and an achievable-CD estimate from spot size, defocus and stage error |
@@ -43,6 +43,23 @@ Generated jobs (line, line array, grid, serpentine, spiral, interdigitated elect
 
 ### Safety model
 Opening the lid or pressing the E-stop forces the laser driver off, pauses the job and disables beam rendering. This mirrors the document's requirement for a UV-filtering amber enclosure and magnetic interlock. Real 405 nm lasers can cause instant permanent blindness; chemical handling needs ventilation.
+
+## Performance notes
+
+Recent three.js guidance was applied in `js/machine.js`:
+- device pixel ratio capped at 1.5× to avoid rendering 9× the pixels on 3× displays;
+- a 1024² `PCFShadowMap` instead of the deprecated soft-shadow constant;
+- hotspot DOM positions are reprojected only when the camera changes;
+- a live FPS / draw-call HUD is shown in the viewport toolbar;
+- physics solves triggered by slider input are coalesced to one per animation frame in `js/main.js`.
+
+## Online references used for the model
+
+- [Three.js docs](https://threejs.org/docs/) — renderer and shadow guidance
+- [Ossila spin-coating guide](https://www.ossila.com/pages/spin-coating) and [Meyerhofer (1978)](https://doi.org/10.1063/1.325357) — thickness ∝ ω⁻¹ᐟ² and viscosity dependence
+- [Ghalehbeygi et al., ACC 2018](https://www.precisionmechatronicslab.com/wp-content/uploads/2021/02/C18c.pdf) — Gaussian beam intensity and scanned dose
+- [Andersen et al., Applied Optics 41, 895 (2002)](https://opg.optica.org/ao/abstract.cfm?uri=ao-41-5-895) — linewidth vs power/velocity
+- [Hnilicka et al., CCA 2002](http://congres.cran.univ-lorraine.fr/2002/CCA%202002/pdffiles/papers/154_ThA2-2.pdf) — astigmatic focus-error S-curve
 
 ## Source material
 

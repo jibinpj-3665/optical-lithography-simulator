@@ -27,6 +27,7 @@ let lidClosed = true;
 let estop = false;
 let animSpeed = 1;
 let running = false;
+let dirty = false;
 let ready = false;
 let laserFiring = false;
 let path = [];
@@ -44,7 +45,7 @@ const machine = createMachine(
 const ui = createUI({
   onParam(key, value) {
     params[key] = value;
-    if (ready) recompute();
+    if (ready) dirty = true; // coalesce rapid slider input into one solve per frame
   },
   onView(name) { machine.setView(name); },
   onLid(open) {
@@ -58,7 +59,6 @@ const ui = createUI({
       ui.log('Lid closed — interlock armed');
     }
     refreshSafety();
-    recompute();
   },
   onEnclosure(visible) { machine.setEnclosureVisible(visible); },
   onEStop(pressed) {
@@ -70,19 +70,18 @@ const ui = createUI({
       ui.log('EMERGENCY STOP pressed — laser disabled', 'warn');
     } else ui.log('E-stop released');
     refreshSafety();
-    recompute();
   },
   onMaterial(name) {
     params.material = name;
     params.doseThreshold = MATERIALS[name].dose;
     ui.syncParams(params);
     ui.log(`Material: ${name} · Dth ${params.doseThreshold} mJ/cm²`);
-    recompute();
+    dirty = true;
   },
   onTone(tone) {
     params.tone = tone;
     ui.log(`Resist tone: ${tone}`);
-    recompute();
+    dirty = true;
   },
   onPattern(key) {
     job = buildJob(key);
@@ -90,7 +89,7 @@ const ui = createUI({
     ui.setGcode(job.gcode);
     preparePath();
     ui.log(`Loaded pattern: ${key} · ${job.segments.length} moves`);
-    recompute();
+    dirty = true;
   },
   onPlay() {
     if (!safe()) {
@@ -108,7 +107,6 @@ const ui = createUI({
     machine.setLaser(false);
     ui.log('Job paused');
     refreshSafety();
-    recompute();
   },
   onReset() {
     running = false;
@@ -118,7 +116,6 @@ const ui = createUI({
     ui.setProgress(0);
     ui.log('Stage returned to origin');
     refreshSafety();
-    recompute();
   },
   onSpeed(value) { animSpeed = value; },
   onAutofocus() { runAutofocus(); },
@@ -243,12 +240,26 @@ async function runAutofocus() {
   ui.log(`Autofocus locked at ${params.defocusUm.toFixed(1)} µm · FES ${q.fes.toFixed(3)}`);
 }
 
-const clock = { last: performance.now() };
+const clock = { last: performance.now(), frames: 0, hudAt: performance.now() };
 function loop(now) {
   const dt = Math.min(0.05, (now - clock.last) / 1000);
   clock.last = now;
+  if (dirty) {
+    recompute();
+    dirty = false;
+  }
   advanceJob(dt);
   machine.render();
+
+  clock.frames++;
+  if (now - clock.hudAt >= 500) {
+    const fps = Math.round((clock.frames * 1000) / (now - clock.hudAt));
+    const stats = machine.getStats();
+    document.querySelector('#perfHud').textContent =
+      `${fps} fps · ${stats.calls} draws · ${stats.pixelRatio.toFixed(1)}×`;
+    clock.frames = 0;
+    clock.hudAt = now;
+  }
   requestAnimationFrame(loop);
 }
 

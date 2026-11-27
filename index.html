@@ -150,6 +150,15 @@
           <div id="scaleTable" class="mini-table"></div>
           <h3>Substrate versatility</h3>
           <div id="materialTable" class="mini-table"></div>
+          <h3>Model references</h3>
+          <div class="references">
+            <a href="https://threejs.org/docs/" target="_blank" rel="noopener">Three.js documentation</a> — renderer, instancing and shadow guidance.
+            <a href="https://www.ossila.com/pages/spin-coating" target="_blank" rel="noopener">Spin coating guide (Ossila)</a> — h ∝ ω<sup>−1/2</sup> rule and Meyerhofer model.
+            <a href="https://doi.org/10.1063/1.325357" target="_blank" rel="noopener">Meyerhofer, J. Appl. Phys. 49, 3993 (1978)</a> — spin-coat film thickness.
+            <a href="https://www.precisionmechatronicslab.com/wp-content/uploads/2021/02/C18c.pdf" target="_blank" rel="noopener">Ghalehbeygi et al., ACC 2018</a> — Gaussian beam and scanned-dose equations.
+            <a href="https://opg.optica.org/ao/abstract.cfm?uri=ao-41-5-895" target="_blank" rel="noopener">Andersen et al., Appl. Opt. 41, 895 (2002)</a> — linewidth vs power/velocity.
+            <a href="http://congres.cran.univ-lorraine.fr/2002/CCA%202002/pdffiles/papers/154_ThA2-2.pdf" target="_blank" rel="noopener">Hnilicka et al., CCA 2002</a> — astigmatic focus-error S-curve.
+          </div>
           <h3>Safety</h3>
           <ul class="safety" id="safetyList"></ul>
           <div class="note warning">This is an educational model. It does not replace laser safety training, a UV enclosure, interlocks or chemical ventilation.</div>
@@ -176,6 +185,7 @@
         <button class="chip" data-view="top">Top</button>
         <button class="chip" data-view="enclosure">Enclosure</button>
         <span class="spacer"></span>
+        <span class="perf" id="perfHud">-- fps · -- draws</span>
         <span class="axis-label">X → &nbsp; Y ↗ &nbsp; Z ↑</span>
       </div>
       <div class="viewport-status" id="viewportStatus">

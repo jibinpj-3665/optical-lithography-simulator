@@ -37,13 +37,16 @@ export function qpdSignal(defocusUm, spotUm) {
   return { a, b, c, d, fes, aspect: Math.abs((1 + x) / (1 - x + 1e-6)), x };
 }
 
-// Dose deposited by a scanned Gaussian line, in mJ/cm^2.
-// P[W] / (v[m/s] * sigma[m] * sqrt(2*pi)) gives J/m^2; multiply by 0.1.
+// Dose at the centre of a scanned Gaussian line, in mJ/cm^2.
+// Intensity I(r) = 2P/(pi*w^2) * exp(-2r^2/w^2). Integrating along the scan
+// gives D(0) = P/v * sqrt(2/pi)/w [J/m^2]; 1 J/m^2 = 0.1 mJ/cm^2.
+// Reference: Ghalehbeygi et al., "Iterative Deconvolution for Exposure Planning
+// in Scanning Laser Lithography", ACC 2018, eq. (1)-(4).
 function peakDose(params, spotEffUm) {
   const powerW = (params.laserMw * params.dutyPct) / 100 / 1000;
   const v = Math.max(params.speedMmS, 0.1) / 1000;
-  const sigma = (Math.max(spotEffUm, 0.2) * 1e-6) / Math.SQRT2;
-  return (0.1 * powerW) / (v * sigma * Math.sqrt(2 * Math.PI));
+  const w = Math.max(spotEffUm, 0.2) * 1e-6;
+  return 0.1 * Math.sqrt(2 / Math.PI) * powerW / (v * w);
 }
 
 function pointSegmentDistance(px, py, s) {
